@@ -28,38 +28,39 @@ def create_app(test_config=None):
         return response
 
         
-    #response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,true')
+   
     
 
   
   questions_in_page= 10
-  asked_question=[0]
   def paginate_questions(request, selection):
+        #take the page of from user or make it defaults as 1  
         page = request.args.get('page', 1, type=int)
+        # determine the questions start from it in list   
         start =  (page - 1) * questions_in_page
+        #determine the end of question  in list 
         end = start + questions_in_page
-
+        # make question in specific formate defined in  class questions
         questions = [question.format() for question in selection]
+        #take questions from list from start position to end position
         current_questions = questions[start:end]
-
+        #return list of questions that will be shown for user
         return current_questions
 
   @app.route('/questions/<int:question_id>', methods=['DELETE'])
   def delete_question(question_id):
     try:
-      question = Question.query.filter(Question.id == question_id).one_or_none()
+          #get object  from database 
+          question = Question.query.filter(Question.id == question_id).one_or_none()
 
-      if question is None:
-        abort(404)
-
-      question.delete()
-      
-
-      return jsonify({
-        'success': True,
-        
-      })
-
+          if question is None:
+                abort(404)
+          #delete object 
+          question.delete()
+          return jsonify({
+                'success': True,
+                'id':question_id
+                 })
     except:
       abort(422)
   @app.route('/questions')
@@ -82,6 +83,9 @@ def create_app(test_config=None):
           'currentCategory':'all'
    
            })
+
+      
+
   questions_forplay= []
   current_category1 = None
   @app.route('/quizzes',methods=['POST'])
@@ -89,17 +93,21 @@ def create_app(test_config=None):
         body = request.get_json()
         question_prev = body.get('previous_questions', None)
         category =  body.get('quiz_category', None)
-        print(category)
-        print(question_prev)
-        query_check = Category.query.filter(Category.type == category['type'])
         
-        if category is None or  query_check.count() < 1:
-              abort(404)
+        query_check = Category.query.filter(Category.type == category['type'])
+        query_check2 = Question.query.filter(Question.category == str(category['id']))
+        
+        if category is None or  query_check.count() < 1 or  query_check2.count() < 1:
+              if  category['type'] != 'click' :
+                    return jsonify({
+                    'success': False })
+                    
+              
        
-        current_category1 = category['type']  
+        #current_category1 = category['type']  
          
          
-        if len(question_prev) ==0  and  category is not None   and query_check.count() > 0  :
+        if  len(question_prev) == 0 and  category is not None   and (query_check.count() > 0 )  :
               
               questions_forplay.clear()
 
@@ -110,7 +118,7 @@ def create_app(test_config=None):
                     abort(404)
               for x in selection :
                     questions_forplay.append(x.id)
-              print(questions_forplay)
+              
               random_num = random.choice(questions_forplay)
               questions_forplay.remove(random_num)
               question_result = Question.query.get(random_num)
@@ -118,12 +126,41 @@ def create_app(test_config=None):
                     'success': True,
                     'question':question_result.format() 
                     })
-        elif len(question_prev) > 0 and category is not None and len(questions_forplay) > 0  and query_check.count() > 0  :
+        elif  len(question_prev) > 0 and category is not None and len(questions_forplay) > 0  and query_check.count() > 0  :
               
                random_num = random.choice(questions_forplay)
                questions_forplay.remove(random_num)
                question_result = Question.query.get(random_num)
                return jsonify({
+                    'success': True,
+                    'question':question_result.format() 
+                    })
+        elif category['type'] == 'click' and  category['id'] ==  0 and len(question_prev) == 0:
+              questions_forplay.clear()
+
+              selection = Question.query.all()
+              
+             
+              if len(selection) == 0 :
+                    abort(404)
+              for x in selection :
+                    questions_forplay.append(x.id)
+              
+              random_num = random.choice(questions_forplay)
+              questions_forplay.remove(random_num)
+              question_result = Question.query.get(random_num)
+              return jsonify({
+                    'success': True,
+                    'question':question_result.format() 
+                    })
+        elif len(question_prev) > 0 and category is not None and len(questions_forplay) > 0 and category['type'] == 'click':
+              #take random element from list questions_forplay 
+              random_num = random.choice(questions_forplay)
+              # remove random_num element from questions_forplay
+              questions_forplay.remove(random_num)
+              #get question  from database  by id we took it from list  questions_forplay
+              question_result = Question.query.get(random_num)
+              return jsonify({
                     'success': True,
                     'question':question_result.format() 
                     })
@@ -176,10 +213,10 @@ def create_app(test_config=None):
         new_category = body.get('category', None)
         try:
               if search :
-                     print("search is "+ search)
-                     selection =Question.query.filter(Question.question.like('%' +search+ '%')).all() #Question.query.order_by(Question.id).filter(Question.question.ilike('%{}%'.format(search))).all()
-                     #print("length of array " + len(selection))
-                     #selection = Question.query.order_by(Question.id).filter(or_(Question.question.ilike('%{}%'.format(search)), Question.answer.ilike('%{}%'.format(search))))
+                     
+                     selection =Question.query.filter(Question.question.ilike('%' +search+ '%')).all()
+                     if   len(selection) ==  0 :
+                           abort(404)
                      current_questions = paginate_questions(request, selection)
                      categories_formate =  Category.query.get(selection[0].category).format()
                      categories = {}
@@ -243,13 +280,8 @@ def create_app(test_config=None):
       "message": "resource not found"
       }), 404
    
-  @app.route('/categorie/<int:category_id>/question')
-  def getx(category_id):
-        questions_result =  Question.query.filter_by(category = str(category_id)).all()
-        questions = [question.format() for question in questions_result]
-        
-
-        return jsonify({"questions":questions})
+  
+ 
   return app
 
     

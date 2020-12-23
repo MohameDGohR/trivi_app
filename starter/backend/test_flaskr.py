@@ -106,7 +106,7 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['success'], True)
        
     def test_quizes_play(self):
-        res = self.client().post('/quizzes', json={'previous_questions':[],'quiz_category':{'id':2,'type':'Art'}})
+        res = self.client().post('/quizzes', json={ "quiz_category":{"id":2, "type":"Art"}})
         data = json.loads(res.data)
         self.assertEqual(res.status_code, 200)
         self.assertTrue(data['question'])
@@ -121,7 +121,7 @@ class TriviaTestCase(unittest.TestCase):
 
 
     def test_delete_question(self):
-         res = self.client().delete('/questions/10')
+         res = self.client().delete('/questions/15')
          data = json.loads(res.data)
          self.assertEqual(res.status_code, 200)
          self.assertEqual(data['success'], True)
